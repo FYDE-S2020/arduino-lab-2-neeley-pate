@@ -14,7 +14,8 @@
                                 http://twitter.com/blynk_app
 
   Blynk library is licensed under MIT license
-  This example code is in public domain.
+  This example code is in public domain.ls
+  
 
  *************************************************************
   This example runs directly on ESP32 chip.
@@ -31,7 +32,7 @@
 
 /* Comment this out to disable prints and save space */
 #define BLYNK_PRINT Serial
-
+#define LED 2
 
 #include <WiFi.h>
 #include <WiFiClient.h>
@@ -39,7 +40,7 @@
 
 // You should get Auth Token in the Blynk App.
 // Go to the Project Settings (nut icon).
-char auth[] = "Your token here";
+char auth[] = "Jrvtb2luTCSBOEx_b83vEnG40dz8tl_M";
 
 // Your WiFi credentials.
 // Set password to "" for open networks.
@@ -48,15 +49,71 @@ char auth[] = "Your token here";
 char ssid[32] = "EE-IOT-Platform-02";
 char pass[32] = "g!TyA>hR2JTy";
 
+const int freq = 5000;
+const int ledChannel = 0;
+const int resolution = 10;
+
+int LEDstate = 0;
+int dimval = 0;
+
+int timerCount = 0;
+String content = "";
+
+BlynkTimer timer;
+
+void myTimerEvent(){
+
+  if(timerCount == 100){
+    Blynk.virtualWrite(V2, millis()/1000);
+    timerCount = 0;
+  }
+  else{
+    char character;
+    while(Serial.available()){
+      character = Serial.read();
+      content.concat(character);
+    }
+    if(content != ""){
+      Blynk.virtualWrite(V3, content);
+      content = "";
+    }
+  }
+  timerCount++;
+}
+
 void setup()
 {
   // Serial Monitor
   Serial.begin(115200);
   Blynk.begin(auth, ssid, pass);
+
+  ledcSetup(ledChannel, freq, resolution);
+  ledcAttachPin(LED, ledChannel);
+
+  timer.setInterval(10L, myTimerEvent);
 }
 
 void loop()
 {
   Blynk.run();
+  timer.run();
 }
 
+BLYNK_WRITE(V0){        //turning LED on and off with button
+  int pinValue = param.asInt();
+  if(pinValue == 0){
+    ledcWrite(ledChannel, 0);
+    LEDstate = 0;
+  }
+  else{
+    ledcWrite(ledChannel, dimval);
+    LEDstate = 1;
+  }
+}
+
+BLYNK_WRITE(V1){        //dimming LED with switch
+  dimval = param.asInt();
+  if(LEDstate == 1){
+    ledcWrite(ledChannel, dimval);
+  }
+}
